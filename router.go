@@ -175,7 +175,11 @@ func (r *defaultRouter) GetLocalPeer(realmURI URI, details map[string]interface{
 		return nil, NoSuchRealmError(realmURI)
 	}
 	// TODO: session open/close callbacks?
-	return realm.getPeer(details)
+	p, err := realm.getPeer(details)
+	if err == nil {
+		p.Ready()
+	}
+	return p, err
 }
 
 func (r *defaultRouter) getTestPeer() Peer {

@@ -27,10 +27,12 @@ func localPipe() (*localPeer, *localPeer) {
 	a := &localPeer{
 		incoming: bToA,
 		outgoing: aToB,
+		ready:    make(chan struct{}),
 	}
 	b := &localPeer{
 		incoming: aToB,
 		outgoing: bToA,
+		ready:    make(chan struct{}),
 	}
 
 	return a, b
@@ -39,6 +41,7 @@ func localPipe() (*localPeer, *localPeer) {
 type localPeer struct {
 	outgoing chan<- Message
 	incoming <-chan Message
+	ready    chan struct{}
 }
 
 func (s *localPeer) Receive() <-chan Message {
@@ -53,4 +56,12 @@ func (s *localPeer) Send(msg Message) error {
 func (s *localPeer) Close() error {
 	close(s.outgoing)
 	return nil
+}
+
+func (s *localPeer) Ready() {
+	close(s.ready)
+}
+
+func (s *localPeer) IsReady() {
+	<-s.ready
 }

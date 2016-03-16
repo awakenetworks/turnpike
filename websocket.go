@@ -103,3 +103,9 @@ func (ep *websocketPeer) run() {
 		}
 	}
 }
+
+func (ep *websocketPeer) Ready() {
+}
+
+func (ep *websocketPeer) IsReady() {
+}

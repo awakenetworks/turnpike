@@ -35,10 +35,14 @@ type localClient struct {
 func (r *Realm) getPeer(details map[string]interface{}) (Peer, error) {
 	peerA, peerB := localPipe()
 	sess := Session{Peer: peerA, Id: NewID(), Details: details, kill: make(chan URI, 1)}
+	peerA.Ready()
 	if details == nil {
 		details = make(map[string]interface{})
 	}
-	go r.handleSession(sess)
+	go func(peerB Peer) {
+		peerB.IsReady()
+		r.handleSession(sess)
+	}(peerB)
 	log.Println("Established internal session:", sess)
 	return peerB, nil
 }
@@ -69,6 +73,7 @@ func (r *Realm) init() {
 	if r.AuthTimeout == 0 {
 		r.AuthTimeout = defaultAuthTimeout
 	}
+	p.Ready()
 }
 
 // func (r *Realm) metaHandler(c *Client) {

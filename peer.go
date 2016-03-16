@@ -24,6 +24,10 @@ type Peer interface {
 
 	// Receive returns a channel of messages coming from the peer.
 	Receive() <-chan Message
+
+	Ready()
+
+	IsReady()
 }
 
 // GetMessageTimeout is a convenience function to get a single message from a
