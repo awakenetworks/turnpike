@@ -177,6 +177,8 @@ func (r *defaultRouter) GetLocalPeer(realmURI URI, details map[string]interface{
 	// TODO: session open/close callbacks?
 	p, err := realm.getPeer(details)
 	if err == nil {
+		// Realm should be fully initialized so assume
+		// if no errors that it is ready
 		p.Ready()
 	}
 	return p, err

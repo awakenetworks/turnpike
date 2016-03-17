@@ -24,7 +24,7 @@ type Realm struct {
 	Authenticators   map[string]Authenticator
 	// DefaultAuth      func(details map[string]interface{}) (map[string]interface{}, error)
 	AuthTimeout time.Duration
-	clients     map[ID]Session
+	clientsMap  *ClientsMap
 	localClient
 }
 
@@ -48,14 +48,13 @@ func (r *Realm) getPeer(details map[string]interface{}) (Peer, error) {
 }
 
 // Close disconnects all clients after sending a goodbye message
-func (r Realm) Close() {
-	for _, client := range r.clients {
-		client.kill <- ErrSystemShutdown
-	}
+func (r *Realm) Close() {
+	r.clientsMap.closeSessions()
 }
 
 func (r *Realm) init() {
-	r.clients = make(map[ID]Session)
+	r.clientsMap = NewClientsMap()
+	go r.clientsMap.server()
 	p, _ := r.getPeer(nil)
 	r.localClient.Client = NewClient(p)
 	if r.Broker == nil {
@@ -87,14 +86,57 @@ func (l *localClient) onLeave(session ID) {
 	l.Publish("wamp.session.on_leave", []interface{}{session}, nil)
 }
 
+type ClientsMap struct {
+	add     chan Session
+	remove  chan Session
+	close   chan struct{}
+	clients map[ID]Session
+}
+
+func NewClientsMap() *ClientsMap {
+	return &ClientsMap{
+		clients: make(map[ID]Session),
+		add:     make(chan Session),
+		remove:  make(chan Session),
+		close:   make(chan struct{}),
+	}
+}
+
+func (cm *ClientsMap) addSession(sess Session) {
+	cm.add <- sess
+}
+
+func (cm *ClientsMap) removeSession(sess Session) {
+	cm.remove <- sess
+}
+
+func (cm *ClientsMap) closeSessions() {
+	close(cm.close)
+}
+
+func (cm *ClientsMap) server() {
+	for {
+		select {
+		case sess := <-cm.add:
+			cm.clients[sess.Id] = sess
+		case sess := <-cm.remove:
+			delete(cm.clients, sess.Id)
+		case <-cm.close:
+			for _, client := range cm.clients {
+				client.kill <- ErrSystemShutdown
+			}
+		}
+	}
+}
+
 func (r *Realm) handleSession(sess Session) {
-	r.clients[sess.Id] = sess
+	r.clientsMap.addSession(sess)
 	r.onJoin(sess.Details)
-	defer func() {
-		delete(r.clients, sess.Id)
+	defer func(sess Session) {
+		r.clientsMap.removeSession(sess)
 		r.Dealer.RemovePeer(sess.Peer)
 		r.onLeave(sess.Id)
-	}()
+	}(sess)
 	c := sess.Receive()
 	// TODO: what happens if the realm is closed?
 
