@@ -2,6 +2,7 @@ package turnpike
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -58,7 +59,12 @@ func (r *Realm) init() {
 	p, _ := r.getPeer(nil)
 	r.localClient.Client = NewClient(p)
 	if r.Broker == nil {
-		r.Broker = NewDefaultBroker()
+		broker, err := NewNatsBroker()
+		if err != nil {
+			logErr(err)
+			os.Exit(1)
+		}
+		r.Broker = broker
 	}
 	if r.Dealer == nil {
 		r.Dealer = NewDefaultDealer()
@@ -122,9 +128,11 @@ func (cm *ClientsMap) server() {
 		case sess := <-cm.remove:
 			delete(cm.clients, sess.Id)
 		case <-cm.close:
+			log.Printf("shutting down clientsMap")
 			for _, client := range cm.clients {
 				client.kill <- ErrSystemShutdown
 			}
+			return
 		}
 	}
 }
