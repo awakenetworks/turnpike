@@ -55,6 +55,10 @@ func NewWebsocketServer(realms map[string]Realm) (*WebsocketServer, error) {
 	return s, nil
 }
 
+func (w *WebsocketServer) SetCheckOrigin(fn func(r *http.Request) bool) {
+	w.Upgrader.CheckOrigin = fn
+}
+
 // NewBasicWebsocketServer creates a new WebsocketServer with a single basic realm
 func NewBasicWebsocketServer(uri string) *WebsocketServer {
 	log.Println("NewBasicWebsocketServer")
