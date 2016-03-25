@@ -55,9 +55,9 @@ func (nb *NatsBroker) Subscribe(sub Sender, msg *Subscribe) {
 	if err != nil {
 		log.Printf("unable to add subscription %q %v", msg.Topic, err)
 	}
+	// lock write
 	nb.m.Lock()
 	defer nb.m.Unlock()
-	// lock write
 	nb.Subscriptions[id] = natsTopic
 	sub.Send(&Subscribed{Request: msg.Request, Subscription: id})
 }
@@ -66,8 +66,7 @@ func (nb *NatsBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 	// Lock because we are reading and changing
 	nb.m.Lock()
 	defer nb.m.Unlock()
-	natsTopic, ok := nb.Subscriptions[msg.Subscription]
-	log.Printf("unsub %s", natsTopic)
+	subscription, ok := nb.Subscriptions[msg.Subscription]
 	if !ok {
 		err := &Error{
 			Type:    msg.MessageType(),
@@ -78,7 +77,7 @@ func (nb *NatsBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 		log.Printf("Error unsubscribing: no such subscription %v", msg.Subscription)
 		return
 	}
-	natsTopic.Unsubscribe()
 	delete(nb.Subscriptions, msg.Subscription)
+	subscription.Unsubscribe()
 	sub.Send(&Unsubscribed{Request: msg.Request})
 }
