@@ -109,3 +109,6 @@ func (ep *websocketPeer) Ready() {
 
 func (ep *websocketPeer) IsReady() {
 }
+
+func (ep *websocketPeer) SetExpiration(seconds int) {
+}

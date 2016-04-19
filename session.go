@@ -65,3 +65,7 @@ func (s *localPeer) Ready() {
 func (s *localPeer) IsReady() {
 	<-s.ready
 }
+
+func (s *localPeer) SetExpiration(int) {
+	// do nothing - local peers do not expire
+}
