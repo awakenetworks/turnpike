@@ -164,7 +164,6 @@ func (r *Realm) handleSession(sess Session) {
 			return
 		}
 
-		log.Printf("[%s] %s: %+v", sess, msg.MessageType(), msg)
 		if isAuthz, err := r.Authorizer.Authorize(sess, msg); !isAuthz {
 			errMsg := &Error{Type: msg.MessageType()}
 			if err != nil {

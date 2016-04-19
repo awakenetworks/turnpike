@@ -36,7 +36,6 @@ func (nb *NatsBroker) Publish(pub Sender, msg *Publish) {
 }
 
 func (nb *NatsBroker) Subscribe(sub Sender, msg *Subscribe) {
-	log.Printf("subscribing to %q!", msg.Topic)
 	id := NewID()
 	natsTopic, err := nb.C.Subscribe(string(msg.Topic), func(e *Event) {
 		event := *e
@@ -45,7 +44,6 @@ func (nb *NatsBroker) Subscribe(sub Sender, msg *Subscribe) {
 			// don't send event to ourselves
 			return
 		}
-		log.Printf("Received Event for topic %q", msg.Topic)
 		err := sub.Send(&event)
 		if err != nil {
 			log.Printf("Error sending to subscriber %d %v", id, err)
