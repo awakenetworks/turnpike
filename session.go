@@ -69,3 +69,7 @@ func (s *localPeer) IsReady() {
 func (s *localPeer) SetExpiration(int) {
 	// do nothing - local peers do not expire
 }
+
+func (s *localPeer) IsExpired() bool {
+	return false
+}

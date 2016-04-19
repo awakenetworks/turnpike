@@ -14,6 +14,7 @@ type websocketPeer struct {
 	messages    chan Message
 	payloadType int
 	closed      bool
+	expiration  *time.Time
 	writeMutex  sync.Mutex
 }
 
@@ -77,9 +78,17 @@ func (ep *websocketPeer) Close() error {
 
 func (ep *websocketPeer) run() {
 	for {
+
 		// TODO: use conn.NextMessage() and stream
 		// TODO: do something different based on binary/text frames
-		if msgType, b, err := ep.conn.ReadMessage(); err != nil {
+		msgType, b, err := ep.conn.ReadMessage()
+		if ep.IsExpired() {
+			// connection has timed out - close it
+			log.Println("connection timeout reached. Closing to force Re-authentication.")
+			ep.Close()
+			break
+		}
+		if err != nil {
 			if ep.closed {
 				log.Println("peer connection closed")
 			} else {
@@ -105,10 +114,26 @@ func (ep *websocketPeer) run() {
 }
 
 func (ep *websocketPeer) Ready() {
+	// do nothing - realm should be initialized
 }
 
 func (ep *websocketPeer) IsReady() {
+	// do nothing - realm should be initialized
 }
 
 func (ep *websocketPeer) SetExpiration(seconds int) {
+	ep.writeMutex.Lock()
+	defer ep.writeMutex.Unlock()
+	expiration := time.Now().Add(time.Second * time.Duration(seconds))
+	ep.expiration = &expiration
+}
+
+func (ep *websocketPeer) IsExpired() bool {
+	ep.writeMutex.Lock()
+	defer ep.writeMutex.Unlock()
+	if ep.expiration == nil {
+		// no expiration set. Never expire
+		return false
+	}
+	return time.Now().After(*ep.expiration)
 }

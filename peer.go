@@ -30,6 +30,8 @@ type Peer interface {
 	IsReady()
 
 	SetExpiration(int)
+
+	IsExpired() bool
 }
 
 // GetMessageTimeout is a convenience function to get a single message from a

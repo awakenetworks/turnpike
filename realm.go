@@ -241,7 +241,14 @@ func (r *Realm) handleAuth(client Peer, details map[string]interface{}) (*Welcom
 	if authenticate, ok := msg.(*Authenticate); !ok {
 		return nil, fmt.Errorf("unexpected %s message received", msg.MessageType())
 	} else {
-		return r.checkResponse(challenge, authenticate)
+		welcome, err := r.checkResponse(challenge, authenticate)
+		if err == nil {
+			if value, ok := welcome.Details["expSeconds"]; ok {
+				log.Printf("Session expiration set to %v seconds", value)
+				client.SetExpiration(int(value.(int64)))
+			}
+		}
+		return welcome, err
 	}
 }
 
