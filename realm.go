@@ -59,7 +59,7 @@ func (r *Realm) init() {
 	p, _ := r.getPeer(nil)
 	r.localClient.Client = NewClient(p)
 	if r.Broker == nil {
-		broker, err := NewNatsBroker()
+		broker, err := NewNatsBroker("")
 		if err != nil {
 			logErr(err)
 			os.Exit(1)

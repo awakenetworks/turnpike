@@ -12,8 +12,11 @@ type NatsBroker struct {
 	m             sync.Mutex
 }
 
-func NewNatsBroker() (Broker, error) {
-	nc, err := nats.Connect(nats.DefaultURL)
+func NewNatsBroker(url string) (Broker, error) {
+	if url == "" {
+		url = nats.DefaultURL
+	}
+	nc, err := nats.Connect(url)
 	if err != nil {
 		return nil, err
 	}
