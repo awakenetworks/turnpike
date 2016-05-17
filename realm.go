@@ -143,6 +143,7 @@ func (r *Realm) handleSession(sess Session) {
 	defer func(sess Session) {
 		r.clientsMap.removeSession(sess)
 		r.Dealer.RemovePeer(sess.Peer)
+		r.Broker.RemovePeer(sess.Peer)
 		r.onLeave(sess.Id)
 	}(sess)
 	c := sess.Receive()

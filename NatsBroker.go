@@ -9,6 +9,7 @@ import (
 type NatsBroker struct {
 	C             *nats.EncodedConn
 	Subscriptions map[ID]*nats.Subscription
+	Senders       map[Sender][]ID
 	m             sync.Mutex
 }
 
@@ -21,7 +22,11 @@ func NewNatsBroker(url string) (Broker, error) {
 		return nil, err
 	}
 	c, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
-	return &NatsBroker{C: c, Subscriptions: make(map[ID]*nats.Subscription)}, nil
+	return &NatsBroker{
+			C:             c,
+			Subscriptions: make(map[ID]*nats.Subscription),
+			Senders:       make(map[Sender][]ID)},
+		nil
 }
 
 func (nb *NatsBroker) Publish(pub Sender, msg *Publish) {
@@ -60,7 +65,28 @@ func (nb *NatsBroker) Subscribe(sub Sender, msg *Subscribe) {
 	nb.m.Lock()
 	defer nb.m.Unlock()
 	nb.Subscriptions[id] = natsTopic
+	// record the subscription ids per sender
+	if nb.Senders[sub] == nil {
+		nb.Senders[sub] = []ID{}
+	}
+	nb.Senders[sub] = append(nb.Senders[sub], id)
 	sub.Send(&Subscribed{Request: msg.Request, Subscription: id})
+}
+
+func (nb *NatsBroker) RemovePeer(peer Peer) {
+	if nb.Senders[peer] == nil {
+		return
+	}
+	nb.m.Lock()
+	defer nb.m.Unlock()
+	for _, id := range nb.Senders[peer] {
+		subscription, ok := nb.Subscriptions[id]
+		if ok {
+			delete(nb.Subscriptions, id)
+			subscription.Unsubscribe()
+		}
+	}
+	delete(nb.Senders, peer)
 }
 
 func (nb *NatsBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
@@ -80,5 +106,15 @@ func (nb *NatsBroker) Unsubscribe(sub Sender, msg *Unsubscribe) {
 	}
 	delete(nb.Subscriptions, msg.Subscription)
 	subscription.Unsubscribe()
+	// clean up sub list
+	var newSubsList []ID
+	for _, id := range nb.Senders[sub] {
+		if msg.Subscription == id {
+			continue
+		}
+		newSubsList = append(newSubsList, id)
+	}
+	nb.Senders[sub] = newSubsList
+
 	sub.Send(&Unsubscribed{Request: msg.Request})
 }

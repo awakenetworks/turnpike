@@ -9,6 +9,8 @@ type Broker interface {
 	Subscribe(Sender, *Subscribe)
 	// Unsubscribes from messages on a URI.
 	Unsubscribe(Sender, *Unsubscribe)
+	// Remove Peers
+	RemovePeer(Peer)
 }
 
 // A super simple broker that matches URIs to Subscribers.
@@ -24,6 +26,9 @@ func NewDefaultBroker() Broker {
 		routes:        make(map[URI]map[ID]Sender),
 		subscriptions: make(map[ID]URI),
 	}
+}
+
+func (br *defaultBroker) RemovePeer(Peer) {
 }
 
 // Publish sends a message to all subscribed clients except for the sender.
