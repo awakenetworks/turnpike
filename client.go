@@ -503,7 +503,10 @@ func (c *Client) Call(procedure string, args []interface{}, kwargs map[string]in
 	if err != nil {
 		return nil, err
 	} else if e, ok := msg.(*Error); ok {
-		return nil, fmt.Errorf("error calling procedure '%v': %v", procedure, e.Error)
+		// Rather than discard the result, try and propagate it back to allow passing
+		// error detail back to the client
+		result := &Result{ArgumentsKw: e.ArgumentsKw, Arguments: e.Arguments}
+		return result, fmt.Errorf("error calling procedure '%v': %v", procedure, e.Error)
 	} else if result, ok := msg.(*Result); !ok {
 		return nil, fmt.Errorf(formatUnexpectedMessage(msg, RESULT))
 	} else {

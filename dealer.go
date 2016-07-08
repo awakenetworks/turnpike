@@ -168,6 +168,7 @@ func (d *defaultDealer) Error(peer Sender, msg *Error) {
 				Details:     make(map[string]interface{}),
 				Arguments:   msg.Arguments,
 				ArgumentsKw: msg.ArgumentsKw,
+				Error:       msg.Error,
 			})
 			log.Printf("returned ERROR %v to caller as ERROR %v", msg.Request, callID)
 		}
