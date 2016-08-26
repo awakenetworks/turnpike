@@ -107,7 +107,7 @@ func TestRemoteCall(t *testing.T) {
 
 					Convey("Should result in an error", func() {
 						So(err, ShouldNotBeNil)
-						So(result, ShouldBeNil)
+						So(result, ShouldNotBeNil)
 					})
 				})
 			})
