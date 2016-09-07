@@ -1,6 +1,8 @@
 package turnpike
 
 import (
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,9 +22,18 @@ func connectedTestClients() (*Client, *Client) {
 	return newTestClient(peer1), newTestClient(peer2)
 }
 
+func connectedNTestClients(n int) (callee *Client, callers []*Client) {
+	router := newTestRouter()
+	callee = newTestClient(router.getTestPeer())
+	for i := 0; i < n; i++ {
+		callers = append(callers, newTestClient(router.getTestPeer()))
+	}
+	return callee, callers
+}
+
 func newTestClient(p Peer) *Client {
 	client := NewClient(p)
-	client.ReceiveTimeout = 100 * time.Millisecond
+	client.ReceiveTimeout = time.Second
 	_, err := client.JoinRealm("turnpike.test", nil)
 	So(err, ShouldBeNil)
 	return client
@@ -109,6 +120,59 @@ func TestRemoteCall(t *testing.T) {
 						So(err, ShouldNotBeNil)
 						So(result, ShouldNotBeNil)
 					})
+				})
+			})
+		})
+	})
+}
+
+// on OSX this test may not run without raising file limits
+// sudo launchctl limit maxfiles 2000000 2000000
+// go test -v -race -cpu 8
+func TestNWayParallelRemoteCall(t *testing.T) {
+	clients := 50
+	Convey("Given "+strconv.Itoa(clients)+" clients connected to the same server", t, func() {
+		callee, callers := connectedNTestClients(clients)
+		defer callee.Close()
+
+		Convey("The callee registers a valid method", func() {
+			handler := func(args []interface{}, kwargs map[string]interface{}) *CallResult {
+				return &CallResult{Args: []interface{}{args[0].(int) * 2}}
+			}
+			methodName := "mymethod"
+			err := callee.BasicRegister(methodName, handler)
+
+			Convey("And expects no error", func() {
+				So(err, ShouldBeNil)
+
+				Convey("The callers calls the callee's remote method", func() {
+					wg := sync.WaitGroup{}
+					wg.Add(clients)
+
+					for i := 0; i < clients; i++ {
+						go func(i int) {
+							defer callers[i].Close()
+							callArgs := []interface{}{5100}
+							result, err := callers[i].Call(methodName, callArgs, make(map[string]interface{}))
+							if err != nil {
+								t.Log("Error ", err)
+								t.Fail()
+							}
+							if result.Arguments[0] != 10200 {
+								t.Log("Expected 10200 got ", result.Arguments[0])
+								t.Fail()
+							}
+							wg.Done()
+						}(i)
+					}
+					wg.Wait()
+				})
+			})
+
+			Convey("And unregisters the method", func() {
+				err := callee.Unregister(methodName)
+				Convey("And expects no error", func() {
+					So(err, ShouldBeNil)
 				})
 			})
 		})

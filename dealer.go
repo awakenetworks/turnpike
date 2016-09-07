@@ -1,5 +1,9 @@
 package turnpike
 
+import (
+	"sync"
+)
+
 // A Dealer routes and manages RPC calls to callees.
 type Dealer interface {
 	// Register a procedure on an endpoint
@@ -34,6 +38,8 @@ type defaultDealer struct {
 	invocations map[ID]ID
 	// keep track of callee's registrations
 	callees map[Sender]map[ID]bool
+
+	sync.Mutex
 }
 
 // NewDefaultDealer returns the default turnpike dealer implementation
@@ -48,6 +54,8 @@ func NewDefaultDealer() Dealer {
 }
 
 func (d *defaultDealer) Register(callee Sender, msg *Register) {
+	d.Lock()
+	defer d.Unlock()
 	if id, ok := d.registrations[msg.Procedure]; ok {
 		log.Println("error: procedure already exists:", msg.Procedure, id)
 		callee.Send(&Error{
@@ -91,6 +99,8 @@ func (d *defaultDealer) Unregister(callee Sender, msg *Unregister) {
 }
 
 func (d *defaultDealer) Call(caller Sender, msg *Call) {
+	d.Lock()
+	defer d.Unlock()
 	if reg, ok := d.registrations[msg.Procedure]; !ok {
 		caller.Send(&Error{
 			Type:    msg.MessageType(),
@@ -129,6 +139,8 @@ func (d *defaultDealer) Call(caller Sender, msg *Call) {
 }
 
 func (d *defaultDealer) Yield(callee Sender, msg *Yield) {
+	d.Lock()
+	defer d.Unlock()
 	if callID, ok := d.invocations[msg.Request]; !ok {
 		// WAMP spec doesn't allow sending an error in response to a YIELD message
 		log.Println("received YIELD message with invalid invocation request ID:", msg.Request)
@@ -153,6 +165,8 @@ func (d *defaultDealer) Yield(callee Sender, msg *Yield) {
 }
 
 func (d *defaultDealer) Error(peer Sender, msg *Error) {
+	d.Lock()
+	defer d.Unlock()
 	if callID, ok := d.invocations[msg.Request]; !ok {
 		log.Println("received ERROR (INVOCATION) message with invalid invocation request ID:", msg.Request)
 	} else {
@@ -176,6 +190,8 @@ func (d *defaultDealer) Error(peer Sender, msg *Error) {
 }
 
 func (d *defaultDealer) RemovePeer(callee Sender) {
+	d.Lock()
+	defer d.Unlock()
 	for reg := range d.callees[callee] {
 		if procedure, ok := d.procedures[reg]; ok {
 			delete(d.registrations, procedure.Procedure)
