@@ -84,12 +84,6 @@ func (ep *websocketPeer) run() {
 		// TODO: use conn.NextMessage() and stream
 		// TODO: do something different based on binary/text frames
 		msgType, b, err := ep.conn.ReadMessage()
-		if ep.IsExpired() {
-			// connection has timed out - close it
-			log.Println("connection timeout reached. Closing to force Re-authentication.")
-			ep.Close()
-			break
-		}
 		if err != nil {
 			if ep.closed {
 				log.Println("peer connection closed")
@@ -128,14 +122,4 @@ func (ep *websocketPeer) SetExpiration(seconds int) {
 	defer ep.writeMutex.Unlock()
 	expiration := time.Now().Add(time.Second * time.Duration(seconds))
 	ep.expiration = &expiration
-}
-
-func (ep *websocketPeer) IsExpired() bool {
-	ep.writeMutex.Lock()
-	defer ep.writeMutex.Unlock()
-	if ep.expiration == nil {
-		// no expiration set. Never expire
-		return false
-	}
-	return time.Now().After(*ep.expiration)
 }
